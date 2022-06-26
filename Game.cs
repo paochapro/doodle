@@ -114,6 +114,8 @@ class MyGame : Game
 
             print("Difficulty: " + Diffuculty);
 
+            //new line
+
             DifficultyChange();
         }
 
