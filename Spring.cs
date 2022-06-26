@@ -9,6 +9,17 @@ using static Utils;
 
 class Springs : Group<Spring>
 {
+    public const int springChance = 5;
+
+    static public void SpawnSpring(int x, int y)
+    {
+        Vector2 pos = new(
+            Random(x, x + Platform.width - Spring.size.X),
+            y - Spring.size.Y
+        );
+
+        Add(new Spring(pos));
+    }
 }
 
 class Spring : Entity

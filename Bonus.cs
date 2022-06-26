@@ -77,7 +77,6 @@ class Bonuses : Group<Bonus>
     const int defaultRocketChance = 0;
 
     public static int bonusChance { get; private set; }
-    public static int springChance = 5;
     const int defaultBonusChance = 0;
 
     static readonly Dictionary<Bonus.BonusType, int> bonusChances = new()
@@ -88,31 +87,17 @@ class Bonuses : Group<Bonus>
     };
     static public void SpawnBonus(int x, int y)
     {
-        //0-nothing, 1-spring, 2-bonus
-        int chance = Chance(100-springChance-bonusChance, springChance, bonusChance);
-
-        if (chance == 0) return;
-
-        Point size = new Point(
-            chance == 1 ? Spring.size.X : Bonus.size.X,
-            chance == 1 ? Spring.size.Y : Bonus.size.Y
-        );
-
         Vector2 pos = new(
-            Random(x, x + Platform.width - size.X), 
-            y - size.Y
+            Random(x, x + Platform.width - Bonus.size.X),
+            y - Bonus.size.Y
         );
 
-        if (chance == 1)
-        {
-            Springs.Add(new Spring(pos));
-        }
-        else
-        {
-            int bonusTypeIndex = Chance(bonusChances.Values.ToArray());
-            Bonus.BonusType type = (Bonus.BonusType)bonusTypeIndex;
-            Add(new Bonus(pos, type));
-        }
+        int bonusTypeIndex = Chance(bonusChances.Values.ToArray());
+        Bonus.BonusType type = (Bonus.BonusType)bonusTypeIndex;
+
+        Add(new Bonus(pos, type));
+
+
     }
     static public void DifficultyChange(float diff)
     {
@@ -137,10 +122,11 @@ class Bonuses : Group<Bonus>
         }
         bonusChances[Bonus.BonusType.Propeller] -= totalPropellerDecrease;
 
-        print("Bonus chances: " + "P: " + bonusChances[Bonus.BonusType.Propeller] + " J: " + bonusChances[Bonus.BonusType.Jetpack] + " R: " + bonusChances[Bonus.BonusType.Rocket] + " G: " + bonusChance);
+        //print("Bonus chances: " + "P: " + bonusChances[Bonus.BonusType.Propeller] + " J: " + bonusChances[Bonus.BonusType.Jetpack] + " R: " + bonusChances[Bonus.BonusType.Rocket] + " G: " + bonusChance);
     }
     static public void Reset()
     {
+        Clear();
         bonusChance = defaultBonusChance;
         bonusChances[Bonus.BonusType.Propeller] = defaultPropellerChance;
         bonusChances[Bonus.BonusType.Jetpack] = defaultJetpackChance;

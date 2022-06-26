@@ -8,12 +8,9 @@ using static Doodle.Utils;
 
 class Enemies : Group<Enemy>
 {
-    const int trapChance = 30;
 
-    static int enemyChance;
+    public static int enemyChance { get; private set; }
     const int enemyDefaultChance = 5;
-
-    static bool failedEnemySpawn = false;
 
     static readonly Dictionary<Enemy.EnemyType, Type> enemyTypes = new()
     {
@@ -22,12 +19,8 @@ class Enemies : Group<Enemy>
         [Enemy.EnemyType.Blackhole] = typeof(Blackhole),
     };
 
-    static bool bonusActivated;
-
     static public void OnBonus()
     {
-        bonusActivated = true;
-
         for(int i =0; i < Count; ++i)
         {
             Enemy enemy = Get(i);
@@ -37,60 +30,16 @@ class Enemies : Group<Enemy>
         }
     }
 
-    static public void BonusEnd() => bonusActivated = false;
 
-    static public void SpawnObstacle(int platformY, int nextPlatformY)
+    static public void SpawnEnemy(int previousY, int currentY)
     {
-        //0-nothing, 1-trap platform, 2-enemy
-        int chance = Chance(100 - trapChance - enemyChance, trapChance, enemyChance);
-
-        //If there was not enough distance between platforms for enemy to spawn
-        //Try to spawn it again next time until its done
-        if (failedEnemySpawn)
-        {
-            chance = 2;
-            failedEnemySpawn = false;
-        }
-
-        //If nothing, dont spawn anything
-        if (chance == 0)  return;
-
-        //If bonus is activated, dont spawn the enemies
-        if (bonusActivated) 
-            chance = 1;
-
-        //Not enough space?
-        int obstacleHeight = chance == 1 ? Platform.height : Enemy.size.Y;
-        int distanceBetween = platformY - nextPlatformY - Platform.height;
-
-        if (distanceBetween < Platforms.minPossibleDistance + obstacleHeight)
-        {
-            if (chance == 2)
-            {
-                failedEnemySpawn = true;
-                print("failed enemy spawn!");
-            }
-
-            return;
-        }
-
         Vector2 pos = new(
             Random(0, MyGame.screenSize.X - Platform.width),//Good
-            Random(max: platformY - Platforms.minPossibleDistance, min: nextPlatformY + Platforms.minPossibleDistance) //70%
+            Random(max: previousY - Platforms.minPossibleDistance, min: currentY + Platforms.minPossibleDistance) //70%
         );
 
-        if (chance == 2) //Enemy
-        {
-            print("spawned enemy");
-
-            Enemy.EnemyType enemyType = (Enemy.EnemyType)Random(0, (int)Enemy.EnemyType.MaxTypes);
-            Add( (Enemy)Activator.CreateInstance(enemyTypes[enemyType], pos)! );
-        }
-
-        if (chance == 1) //Trap platform
-        {
-            Platforms.AddTrap(pos);
-        }
+        Enemy.EnemyType enemyType = (Enemy.EnemyType)Random(0, (int)Enemy.EnemyType.MaxTypes);
+        Add((Enemy)Activator.CreateInstance(enemyTypes[enemyType], pos)!);
     }
 
     static public void DifficultyChange(float diff)

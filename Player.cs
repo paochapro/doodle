@@ -77,8 +77,8 @@ internal class Player : Entity
             if(bonusWastedTime > Bonus.bonusTime)
             {
                 bonusActivated = false;
-                Enemies.BonusEnd();
                 bonusWastedTime = 0;
+                Platforms.bonusActivated = false;
             }
             velocity.Y = -bonus.speed;
             bonusWastedTime += gameTime.ElapsedGameTime.TotalSeconds;
@@ -108,9 +108,18 @@ internal class Player : Entity
         {
             Platform platform = Platforms.Get(i);
 
-            //Semi-solid
-            if (oldPosition.Y + rectangle.Height > platform.Rect.Y)
-                continue;
+
+            if (platform.PlatformType == Platforms.PlatformType.Spinning)
+            {
+                if (velocity.Y < 0) continue;
+            }
+            else
+            {
+                //Semi-solid
+                if (oldPosition.Y + rectangle.Height > platform.Rect.Y)
+                    continue;
+            }
+
 
             if (rectangle.Intersects(platform.Rect))
             {
@@ -170,6 +179,9 @@ internal class Player : Entity
 
     private void ActivateBonus(Bonus.BonusData bonus)
     {
+        Enemies.OnBonus();
+        Platforms.bonusActivated = true;
+
         bonusActivated = true;
         this.bonus = bonus;
         bonus.sound.CreateInstance().Play();
@@ -184,7 +196,6 @@ internal class Player : Entity
             if(rectangle.Intersects(bonus.Rect))
             {
                 ActivateBonus( Bonus.bonusGeneralData[bonus.Type] );
-                Enemies.OnBonus();
                 bonus.OnTouch();
             }
         }
@@ -195,7 +206,7 @@ internal class Player : Entity
             //Semi-solid
             Spring spring = Springs.Get(i);
 
-            if (rectangle.Y + rectangle.Height > spring.Rect.Y + spring.Rect.Width/2)
+            if (oldPosition.Y + rectangle.Height > spring.Rect.Y)
                 continue;
 
             if (rectangle.Intersects(spring.Rect))

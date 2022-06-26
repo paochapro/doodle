@@ -183,8 +183,8 @@ class Platforms : Group<Platform>
     {
         [PlatformType.Simple] = typeof(SimplePlatform),
         [PlatformType.Movable] = typeof(MovablePlatform),
-        [PlatformType.Spinning] = typeof(SpinningPlatform),
         [PlatformType.Breakable] = typeof(BreakablePlatform),
+        [PlatformType.Spinning] = typeof(SpinningPlatform),
         [PlatformType.Trap] = typeof(TrapPlatform),
     };
     static Dictionary<PlatformType, int> platformChances = new Dictionary<PlatformType, int>()
@@ -195,22 +195,14 @@ class Platforms : Group<Platform>
         [PlatformType.Spinning] = 0,
     };
 
-
     //Default platform chances
-    const int simpleDefaultChance = 80;
+    const int simpleDefaultChance = 100-breakableDefaultChance-spinningDefaultChance-movableDefaultChance;
     const int movableDefaultChance = 0;
-    const int breakableDefaultChance = 10;
-    const int spinningDefaultChance = 10;
+    const int breakableDefaultChance = 15;
+    const int spinningDefaultChance = 0;
 
     //Start platform
-    static readonly int startX = center(MyGame.screenSize.X, Platform.width);
-    static readonly int startY = 128;
-
-    //Next platform
-    static Point nextPlatform;
-    static PlatformType randomType;
-    public const int minPossibleDistance = 15 + Platform.height;
-    public const int maxPossibleDistance = 330 - Platform.height;
+    static readonly Vector2 startPlatform = new(center(MyGame.screenSize.X, Platform.width), 128);
 
     //Distance chacnces
     const int defaultSmallChance = 95;
@@ -225,54 +217,163 @@ class Platforms : Group<Platform>
     {
         Add((Platform)Activator.CreateInstance(platformTypes[platformType], pos)!);
     }
-    static public void AddTrap(Vector2 pos) => Add(new TrapPlatform(pos));
-    
+    static public void AddTrap(int previousY, int currentY)
+    {
+        Vector2 pos = new(
+            Random(0, MyGame.screenSize.X - Platform.width),//Good
+            Random(max: previousY - Platforms.minPossibleDistance, min: currentY + Platforms.minPossibleDistance) //70%
+        );
+
+        Add(new TrapPlatform(pos));
+    }
+
+    //Next platform
+    static Point previousPlatform;
+    static PlatformType platformType;
+    public const int minPossibleDistance = 15 + Platform.height;
+    public const int maxPossibleDistance = 330 - Platform.height;
+
+    static bool failedBonusSpawn = false;
+    public static bool bonusActivated = true;
 
     static public int Generate()
     {
-        //Platform position
-        int x = nextPlatform.X;
-        int y = nextPlatform.Y;
-
-        //Adding random platform
-        Add(randomType, new Vector2(x, y));
-
-        //Adding bonuses
-        if (randomType == PlatformType.Simple)
-            Bonuses.SpawnBonus(x, y);
-
-        //Next platform random distance
+        //Random distance
         int chance = Chance(smallDistChance, medDistChance, largeDistChance) + 1;
         const int portion = (maxPossibleDistance - minPossibleDistance) / 3;
 
-        int maxDistance = portion * chance + minPossibleDistance;
-        int minDistance = maxDistance - portion;
+        int maxDistance = (portion * chance + minPossibleDistance);
+        int minDistance = (maxDistance - portion);
 
-        //Next platform position
-        nextPlatform.Y = Random(max: y - minDistance, min: y - maxDistance);
-        nextPlatform.X = Random(0, MyGame.screenSize.X - Platform.width);
+        //Position
+        int x = Random(0, MyGame.screenSize.X - Platform.width);
+        int y = Random(max: previousPlatform.Y - minDistance, min: previousPlatform.Y - maxDistance);
 
         //Getting random platform type
         int platformTypeIndex = Chance(platformChances.Values.ToArray());   //Getting chance on some platform
-        randomType = platformChances.Keys.ElementAt(platformTypeIndex);     //Getting platform type at index in platformChances
 
-        //Adding obstacles
-        Enemies.SpawnObstacle(y, nextPlatform.Y);
+        if (platformTypeIndex == -1)
+        {
+            foreach (var platformChance in platformChances)
+                print(platformChance);
+
+            throw new Exception("platform type index chance -1 in Generate");
+        }
+
+        if(platformType == PlatformType.Spinning)
+            if (platformChances.Keys.ElementAt(platformTypeIndex) == PlatformType.Spinning)
+                platformTypeIndex = platformChances[PlatformType.Simple];
+
+        platformType = platformChances.Keys.ElementAt(platformTypeIndex);   //Getting platform type at index in platformChances
+
+        Add(platformType, new Vector2(x, y));
+
+        //Distance beetween previous and this platform
+        int distance = previousPlatform.Y - y;
+
+
+        //Bonuses and springs
+        SpawnGroundItem(x, y);
+
+        //Enemies
+        SpawnObstacle(previousPlatform.Y, y);
 
         //Debug
-        Vector2 p1 = new Vector2(x, y);
-        Vector2 p2 = new Vector2(x, nextPlatform.Y);
+        Vector2 p1 = new Vector2(previousPlatform.X, y);
+        Vector2 p2 = new Vector2(previousPlatform.X, previousPlatform.Y);
         DebugLines.Add(new DebugLine(p1, p2));
 
-        //Returning distance beetween next and this platform
-        int distance = y - nextPlatform.Y; //Math.Abs(nextPlatform.Y) - Math.Abs(y);
+        previousPlatform = new Point(x, y);
+
+        if (platformType == PlatformType.Spinning)
+            previousPlatform.Y -= (int)SpinningPlatform.rotationHeight;
+
         return -distance;
     }
+
+    static private void SpawnGroundItem(int x, int y)
+    {
+        //0-nothing, 1-spring, 2-bonus
+        int chance = Chance(100 - Springs.springChance - Bonuses.bonusChance, Springs.springChance, Bonuses.bonusChance);
+
+        if (failedBonusSpawn)
+        {
+            chance = 2;
+            failedBonusSpawn = false;
+        }
+
+        if (platformType != PlatformType.Simple)
+        {
+            if(chance == 2)
+            {
+                failedBonusSpawn = true;
+                print("failed bonus spawn");
+            }
+
+            return;
+        }
+
+        if (chance == 1) Springs.SpawnSpring(x, y);
+        if (chance == 2) Bonuses.SpawnBonus(x, y);
+        
+    }
+
+    const int trapChance = 30;
+    static bool failedEnemySpawn = false;
+
+    static public void SpawnObstacle(int previousY, int currentY)
+    {
+        //0-nothing, 1-trap platform, 2-enemy
+        int chance = Chance(100 - trapChance - Enemies.enemyChance, trapChance, Enemies.enemyChance);
+
+        //If there was not enough distance between platforms for enemy to spawn
+        //Try to spawn it again next time until its done
+        if (failedEnemySpawn)
+        {
+            chance = 2;
+            failedEnemySpawn = false;
+        }
+
+        //If nothing, dont spawn anything
+        if (chance == 0) return;
+
+        //If bonus is activated, dont spawn the enemies
+        if (bonusActivated)
+        {
+            chance = 1;
+        }
+
+        //Not enough space?
+        int obstacleHeight = chance == 1 ? Platform.height : Enemy.size.Y;
+        int distanceBetween = previousY - currentY - Platform.height;
+
+        if (distanceBetween < minPossibleDistance + obstacleHeight)
+        {
+            if (chance == 2)
+            {
+                failedEnemySpawn = true;
+                print("failed enemy spawn!");
+            }
+
+            return;
+        }
+
+        //Enemy
+        if (chance == 2)
+        {
+            print("spawned enemy");
+            Enemies.SpawnEnemy(previousY, currentY);
+        }
+        //Trap platform
+        if (chance == 1) AddTrap(previousY, currentY);
+    }
+
     static public void Reset()
     {
         Clear();
-        nextPlatform = new(startX, startY);
-        randomType = PlatformType.Simple;
+        previousPlatform = startPlatform.ToPoint();
+        platformType = PlatformType.MaxTypes;
+
         smallDistChance = defaultSmallChance;
         medDistChance = defaultMedChance;
         largeDistChance = defaultLargeChance;
@@ -280,6 +381,10 @@ class Platforms : Group<Platform>
         platformChances[PlatformType.Simple] = simpleDefaultChance;
         platformChances[PlatformType.Breakable] = breakableDefaultChance;
         platformChances[PlatformType.Movable] = movableDefaultChance;
+        failedBonusSpawn = false;
+
+        //First platform
+        Add(new SimplePlatform(startPlatform));
     }
     static public void DifficultyChange(float diff)
     {
@@ -296,18 +401,25 @@ class Platforms : Group<Platform>
         largeDistChance += largeDistIncrease;
 
         //Platform types changes
-        const int simpleDecrease = 10;
         const int breakableIncrease = 5;
         const int movableIncrease = 5;
+        const int spinningIncrease = 1;
+        const int simpleDecrease = breakableIncrease + movableIncrease + spinningIncrease;
 
-        if ((breakableIncrease + movableIncrease - simpleDecrease) != 0)
+        if ((breakableIncrease + movableIncrease + spinningIncrease - simpleDecrease) != 0)
             throw new Exception("platform chance changes not equals zero in Platforms:DifficultyChange");
 
         platformChances[PlatformType.Simple] -= simpleDecrease;
         platformChances[PlatformType.Breakable] += breakableIncrease;
         platformChances[PlatformType.Movable] += movableIncrease;
+        platformChances[PlatformType.Spinning] += spinningIncrease;
 
-        //print("Chances:" + " S-" + platformChances[PlatformType.Simple] + " B-" + platformChances[PlatformType.Breakable] + " M-" + platformChances[PlatformType.Movable]);
+        print("Chances:");
+        print("{");
+        foreach(var pair in platformChances)
+            print("\t" + pair.Key + ": " + pair.Value);
+
+        print("}");
     }
 }
 
@@ -423,32 +535,38 @@ class BreakablePlatform : Platform
 class SpinningPlatform : Platform
 {
     static readonly Color sColor = Color.Aquamarine;
-    public static readonly float whole
+    public static readonly float rotationHeight = 440;
 
     public SpinningPlatform(Vector2 pos)
        : base(pos, defaultTexture, sColor)
     {
+        deathY = pos.Y - rotationHeight;
         rectangle.X = MyGame.screenSize.X/2-width/2;
     }
 
-    static float generalAcceleration = 180;
-    Vector2 acceleration = new(generalAcceleration, generalAcceleration);
-
     const float maxVelocity = 280;
     const float minVelocity = 20;
-
+    static float generalAcceleration = 180;
+    Vector2 acceleration = new(generalAcceleration, -generalAcceleration);
     Vector2 velocity = new Vector2(maxVelocity, 0);
+
+    float deathY;
 
     public override void Update(GameTime gameTime)
     {
         float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
+        //OOB
+        if (deathY > MyGame.DeathPit)
+            Destroy();
+
+        //Makes circle
         if (Math.Abs(velocity.X) >= maxVelocity)
         {
             velocity.X = maxVelocity * Math.Sign(velocity.X);
             acceleration.X = -acceleration.X;
         }
-        
+
         if (Math.Abs(velocity.X) <= minVelocity)
         {
             velocity.X = -minVelocity * Math.Sign(velocity.X);

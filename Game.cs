@@ -54,6 +54,7 @@ class MyGame : Game
         int dist = Platforms.Generate();
         generateHeight += dist;
     }
+
     protected override void Initialize()
     {
         Window.AllowUserResizing = false;
@@ -188,7 +189,6 @@ class MyGame : Game
         DebugLines.Clear();
         Event.ClearEvents();
 
-        //Platforms.Add(new SpinningPlatform( new Vector2(screenSize.X/2-Platform.width/2, 0)));
 
         for (int i = 0; i < startGenerateCount; ++i)
             GeneratePlatform();
