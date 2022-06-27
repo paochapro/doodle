@@ -22,7 +22,7 @@ class MyGame : Game
     public static MouseState mouse { get => Mouse.GetState(); }
     public static KeyboardState keys { get => Keyboard.GetState(); }
     static public Vector2 Camera;
-    static public bool Debug { get; private set; } = true;
+    static public bool Debug { get; private set; } = false;
 
     //Game
     static Player player;

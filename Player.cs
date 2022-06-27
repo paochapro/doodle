@@ -41,7 +41,7 @@ internal class Player : Entity
     Bonus.BonusData bonus;
 
     //Debug
-    bool update = false;
+    bool update = true;
     bool pressingQ;
 
     public Player() : base( new RectangleF(0,0,size.X, size.Y), idle )

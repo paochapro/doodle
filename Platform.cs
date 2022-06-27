@@ -296,7 +296,6 @@ class Platforms : Group<Platform>
         DebugLines.Add(new DebugLine(p1, p2));
 
         previousPlatform = new Point(x, y);
-        previousPlatformType = platformType;
 
         if (platformType == PlatformType.Spinning)
             previousPlatform.Y -= (int)SpinningPlatform.rotationHeight;
@@ -416,7 +415,7 @@ class Platforms : Group<Platform>
         //Platform types changes
         const int breakableIncrease = 5;
         const int movableIncrease = 5;
-        const int spinningIncrease = 70;
+        const int spinningIncrease = 1;
         const int simpleDecrease = breakableIncrease + movableIncrease + spinningIncrease;
 
         if ((breakableIncrease + movableIncrease + spinningIncrease - simpleDecrease) != 0)
@@ -563,7 +562,6 @@ class SpinningPlatform : Platform
 
     public void ChangeRotationSide(Side side)
     {
-        print(side == Side.Top ? "top" : "bottom");
         this.side = side;
 
         if (side == Side.Top)
