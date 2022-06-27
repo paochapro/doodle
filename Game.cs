@@ -52,6 +52,8 @@ class MyGame : Game
     bool pressingE = false;
     bool pressingG = false;
 
+    static int deathCount = 0;
+
     //Ui
     static readonly Rectangle upperBox = new(0, 0, MyGame.screenSize.X, percent(screenSize.Y, 7));
     static readonly Color upperBoxColor = new Color(0, 0, 0, 0.1f);
@@ -142,6 +144,9 @@ class MyGame : Game
     static bool failedBonusSpawn = false;
     public static bool bonusActivated = true;
 
+    public enum GameState { Menu, Game, Death }
+    public static GameState gameState { get; private set; }
+
     static public void Reset()
     {
         diffucultyHeight = startDiffucultyHeight * minDifficulty;
@@ -155,6 +160,7 @@ class MyGame : Game
         failedEnemySpawn = false;
         failedBonusSpawn = false;
         bonusActivated = false;
+        God = false;
 
         Platforms.Reset();
         Enemies.Reset();
@@ -191,6 +197,7 @@ class MyGame : Game
     {
         Bonuses.DifficultyChange(Diffuculty);
         Enemies.DifficultyChange(Diffuculty);
+        Platforms.DifficultyChange(Diffuculty);
     }
 
     //Main
@@ -201,8 +208,15 @@ class MyGame : Game
 
         Controls();
 
-        Ui.UpdateElements(mouse);
+        UI.UpdateElements(mouse);
         Event.ExecuteEvents(gameTime);
+
+        if (gameState == GameState.Menu)
+        {
+            base.Update(gameTime);
+            return;
+        }
+
         Entities.Update(gameTime);
 
         if (player.Rect.Y < highestY)
@@ -223,7 +237,6 @@ class MyGame : Game
         {
             diffucultyHeight *= difficultyMultiplier;
 
-            Platforms.DifficultyChange(Diffuculty);
 
             Diffuculty += 1;
             Diffuculty = clamp(Diffuculty, minDifficulty, maxDifficulty);
@@ -234,6 +247,7 @@ class MyGame : Game
 
             DifficultyChange();
         }
+
 
         if (player.Rect.Y < generateHeight)
             Generate();
@@ -253,13 +267,13 @@ class MyGame : Game
     private void DrawUi()
     {
         spriteBatch.FillRectangle(upperBox, upperBoxColor);
-        spriteBatch.DrawString(Ui.Font, "Score: " + score.ToString(), scorePosition, Color.Black);
+        spriteBatch.DrawString(UI.Font, "Score: " + score.ToString(), scorePosition, Color.Black);
 
         if(God)
         {
-            Vector2 measure = Ui.Font.MeasureString("Godmode ON");
+            Vector2 measure = UI.Font.MeasureString("Godmode ON");
             Vector2 position = new Vector2(screenSize.X - measure.X - percent(screenSize.X, 5), scorePosition.Y);
-            spriteBatch.DrawString(Ui.Font, "Godmode ON", position, Color.Red);
+            spriteBatch.DrawString(UI.Font, "Godmode ON", position, Color.Red);
         }
     }
 
@@ -269,37 +283,67 @@ class MyGame : Game
 
         spriteBatch.Begin();
         {
-            Platforms.Draw(spriteBatch);
-            Bonuses.Draw(spriteBatch);
-            Springs.Draw(spriteBatch);
-            DebugLines.Draw(spriteBatch);
-            player.Draw(spriteBatch);
-            Enemies.Draw(spriteBatch);
+            UI.DrawElements(spriteBatch);
 
-            DrawUi();
+            if (gameState == GameState.Game)
+            {
+                Platforms.Draw(spriteBatch);
+                Bonuses.Draw(spriteBatch);
+                Springs.Draw(spriteBatch);
+                DebugLines.Draw(spriteBatch);
+                player.Draw(spriteBatch);
+                Enemies.Draw(spriteBatch);
 
-            Ui.DrawElements(spriteBatch);
+                DrawUi();
 
-            generateHeightLine.Draw(spriteBatch);
-            deathpit.Draw(spriteBatch);
+                generateHeightLine.Draw(spriteBatch);
+                deathpit.Draw(spriteBatch);
+            }
         }
         spriteBatch.End();
 
         base.Draw(gameTime);
     }
+
+    private void StartGame()
+    {
+        gameState = GameState.Game;
+        Reset();
+        UI.CurrentLayer = 1;
+    }
+    private void Menu()
+    {
+        gameState = GameState.Menu;
+        UI.CurrentLayer = 0;
+    }
+
     protected override void LoadContent()
     {
         spriteBatch = new SpriteBatch(GraphicsDevice);
         MonoGame.Content = Content;
-        Ui.Font = Content.Load<SpriteFont>("bahnschrift");
-
+        UI.Font = Content.Load<SpriteFont>("bahnschrift");
+        CreateUi();
         player = new Player();
-
-        Reset();
         Entities.Add(player);
     }
+
+    static public void DeathState()
+    {
+        gameState = GameState.Death;
+        deathCount++;
+        UI.CurrentLayer = 2;
+    }
+
     private void CreateUi()
     {
+        Point buttonSize = new(100,40);
+        Rectangle rectPlay = new(15,15, buttonSize.X, buttonSize.Y);
+        Rectangle rectMenu = new(screenSize.X - buttonSize.X - percent(screenSize.X, 5), percent(screenSize.Y, 1), buttonSize.X, buttonSize.Y);
+        Rectangle rectRestart = rectMenu;
+        rectRestart.Y = rectMenu.Bottom + percent(screenSize.X, 2);
+        UI.Add(new Button(rectPlay, StartGame, "Play", 0));
+        UI.Add(new Button(rectMenu, Menu, "Menu", 2));
+        UI.Add(new Button(rectRestart, StartGame, "Restart", 2));
     }
     //Setups
 

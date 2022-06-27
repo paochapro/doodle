@@ -93,8 +93,13 @@ internal class Player : Entity
         //Death
         if (rectangle.Y + size.Y >= MyGame.DeathPit)
         {
-            MyGame.Reset();
-            Death();
+            if(MyGame.God)
+                Jump(jumpHeight);
+            else
+            {
+                MyGame.DeathState();
+                Death();
+            }
         }
 
         oldPosition = rectangle.Position;
@@ -108,7 +113,6 @@ internal class Player : Entity
         {
             Platform platform = Platforms.Get(i);
 
-
             if (platform.PlatformType == Platforms.PlatformType.Spinning)
             {
                 if (velocity.Y < 0) continue;
@@ -119,7 +123,6 @@ internal class Player : Entity
                 if (oldPosition.Y + rectangle.Height > platform.Rect.Y)
                     continue;
             }
-
 
             if (rectangle.Intersects(platform.Rect))
             {
@@ -174,13 +177,17 @@ internal class Player : Entity
         oldPosition = rectangle.Position;
         bonusWastedTime = 0;
         direction = defaultDirection;
-        //MyGame.deathCount++;
+        bonusRect = Rectangle.Empty;
+        bonusOffset = Point.Zero;
     }
 
     private void ActivateBonus(Bonus.BonusData bonus)
     {
         Enemies.OnBonus();
         MyGame.bonusActivated = true;
+
+        bonusRect = bonus.playerTexture.Bounds;
+        bonusOffset = bonus.offset.ToPoint();
 
         bonusActivated = true;
         this.bonus = bonus;
@@ -231,6 +238,9 @@ internal class Player : Entity
         }
     }
 
+    Rectangle bonusRect = Rectangle.Empty;
+    Point bonusOffset = Point.Zero;
+
     public override void Draw(SpriteBatch spriteBatch)
     {
         Rectangle final = (Rectangle)rectangle;
@@ -241,13 +251,11 @@ internal class Player : Entity
 
         if (bonusActivated)
         {
-            Rectangle bonusRect = bonus.playerTexture.Bounds;
             bonusRect.Location = final.Location;
 
             if (direction == -1)
                 bonusRect.X = final.Right - bonusRect.Width;
 
-            Point bonusOffset = bonus.offset.ToPoint();
             bonusRect.Location += new Point(bonusOffset.X * direction, bonusOffset.Y);
 
             var drawBonus = () => spriteBatch.Draw(bonus.playerTexture, bonusRect, Color.White);

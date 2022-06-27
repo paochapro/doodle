@@ -180,7 +180,6 @@ public abstract class Entity
 
     public void DestroyOOB()
     {
-        return;
         if (rectangle.Y > MyGame.DeathPit)
             Destroy();
     }
@@ -205,13 +204,15 @@ class DebugLine : Entity
     public Vector2 p2;
     public Color color;
     bool showCounter;
+    string? customText;
 
-    public DebugLine(Vector2 p1, Vector2 p2, Color color, bool showCounter = true)
+    public DebugLine(Vector2 p1, Vector2 p2, Color color, bool showCounter = true, string? customText = null)
     {
         this.p1 = p1;
         this.p2 = p2;
         this.color = color;
         this.showCounter = showCounter;
+        this.customText = customText;
     }
     public DebugLine(Vector2 p1, Vector2 p2) 
         : this(p1,p2,Color.Red)
@@ -230,9 +231,9 @@ class DebugLine : Entity
         if (!showCounter) return;
             
         float length = p1.Y - p2.Y;
-        float textHeight = Ui.Font.MeasureString(length.ToString()).Y;
+        float textHeight = UI.Font.MeasureString(length.ToString()).Y;
         Vector2 textPos = new(p1.X + 15, center(p1.Y, p2.Y, textHeight));
-        spriteBatch.DrawString(Ui.Font, length.ToString(), textPos, color);
+        spriteBatch.DrawString(UI.Font, customText ?? length.ToString(), textPos, color);
 
         //Endings
         Vector2 endingP1 = new(p1.X - 4, p1.Y);
@@ -285,10 +286,10 @@ class Event
 }
 
 //Ui
-abstract class Ui
+abstract class UI
 {
     //Static
-    static List<Ui> elements = new();
+    static List<UI> elements = new();
     static bool clicking;
     public static bool Clicking => clicking;
 
@@ -309,7 +310,7 @@ abstract class Ui
 
     public static SpriteFont Font { get; set; }
 
-    static Ui()
+    static UI()
     {
         Font = MonoGame.Load<SpriteFont>("bahnschrift")!;
     }
@@ -367,7 +368,7 @@ abstract class Ui
     protected readonly int layer = 0;
     public static int CurrentLayer { get; set; }
 
-    protected Ui(Rectangle rect, string text, int layer)
+    protected UI(Rectangle rect, string text, int layer)
     {
         this.rect = rect;
         this.text = text;
@@ -378,7 +379,7 @@ abstract class Ui
     {
         Mouse.SetCursor(MouseCursor.Arrow);
 
-        foreach (Ui element in elements)
+        foreach (UI element in elements)
             if (element.layer == CurrentLayer && !element.locked)
                 element.Update(mouse);
 
@@ -386,11 +387,11 @@ abstract class Ui
     }
     static public void DrawElements(SpriteBatch spriteBatch)
     {
-        foreach (Ui element in elements)
+        foreach (UI element in elements)
             if (element.layer == CurrentLayer)
                 element.Draw(spriteBatch);
     }
-    static public T Add<T>(T elem) where T : Ui
+    static public T Add<T>(T elem) where T : UI
     {
         elements.Add(elem);
         return elem;
@@ -398,7 +399,7 @@ abstract class Ui
 }
 
 //Button
-class Button : Ui
+class Button : UI
 {
     event Action func;
 
@@ -410,7 +411,7 @@ class Button : Ui
     public override void Activate() => func.Invoke();
 }
 
-class CheckBox : Ui
+class CheckBox : UI
 {
     bool isChecked = false;
     bool IsChecked => isChecked;

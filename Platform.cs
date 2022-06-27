@@ -231,7 +231,7 @@ class Platforms : Group<Platform>
 
     //Next platform
     static Point previousPlatform;
-    static PlatformType platformType;
+    static PlatformType previousPlatformType;
     public const int minPossibleDistance = 15 + Platform.height;
     public const int maxPossibleDistance = 330 - Platform.height;
 
@@ -246,6 +246,7 @@ class Platforms : Group<Platform>
         PlatformType platformType
     );
 
+    static bool failedSpinningSpawn;
 
     static public GeneratedPlatformData Generate()
     {
@@ -261,22 +262,31 @@ class Platforms : Group<Platform>
         int y = Random(max: previousPlatform.Y - minDistance, min: previousPlatform.Y - maxDistance);
 
         //Getting random platform type
-        int platformTypeIndex = Chance(platformChances.Values.ToArray());   //Getting chance on some platform
+        int platformTypeIndex = Chance(platformChances.Values.ToArray());               //Getting chance on some platform
+        PlatformType platformType = platformChances.Keys.ElementAt(platformTypeIndex);  //Getting platform type at index in platformChances
 
-        if (platformTypeIndex == -1)
+        //If last platform failed to be a spinning platform try spawining it again
+        if(failedSpinningSpawn) 
         {
-            foreach (var platformChance in platformChances)
-                print(platformChance);
-
-            throw new Exception("platform type index chance -1 in Generate");
+            platformType = PlatformType.Spinning;
+            failedSpinningSpawn = false;
         }
 
-
-        platformType = platformChances.Keys.ElementAt(platformTypeIndex);   //Getting platform type at index in platformChances
+        //If previous platform was breakable and current platform is spinning one
+        //then we need to change the type of the current platform
+        if(previousPlatformType == PlatformType.Breakable &&
+           platformType == PlatformType.Spinning)
+        {
+            platformType = Chance(50) ? PlatformType.Simple : PlatformType.Movable;
+            failedSpinningSpawn = true;
+        }
 
         Platform platform = Add(platformType, new Vector2(x, y));
 
-        if(platformType == PlatformType.Spinning)  
+        //If there are two times or more spinning platforms in a row
+        //then we need to change the rotation side of this spinning platform
+        int spinningRotationDistance = 0;
+        if (platformType == PlatformType.Spinning)  
         {
             lastSpinningSide = lastSpinningSide == SpinningPlatform.Side.Bottom ? 
                                SpinningPlatform.Side.Top : 
@@ -284,27 +294,26 @@ class Platforms : Group<Platform>
 
             SpinningPlatform spinningPlatform = (platform as SpinningPlatform)!;
             spinningPlatform.ChangeRotationSide(lastSpinningSide);
+            spinningRotationDistance = (int)SpinningPlatform.rotationHeight;
         }
-
 
         GeneratedPlatformData data = new()
         {
-            distance = previousPlatform.Y - y,
+            distance = previousPlatform.Y - y + spinningRotationDistance,
             x = x,
             y = y,
             previousY = previousPlatform.Y,
-            platformType = Platforms.platformType
+            platformType = platformType
         };
 
         //Debug
         Vector2 p1 = new Vector2(previousPlatform.X, y);
         Vector2 p2 = new Vector2(previousPlatform.X, previousPlatform.Y);
+        DebugLines.Add(new DebugLine( new Vector2(x,y), new Vector2(x,y+1), Color.Blue, true, platformType.ToString()));
         DebugLines.Add(new DebugLine(p1, p2));
 
-        previousPlatform = new Point(x, y);
-
-        if (platformType == PlatformType.Spinning)
-            previousPlatform.Y -= (int)SpinningPlatform.rotationHeight;
+        previousPlatform = new Point(x, y - spinningRotationDistance);
+        previousPlatformType = platformType;
 
         return data;
     }
@@ -313,7 +322,7 @@ class Platforms : Group<Platform>
     {
         Clear();
         previousPlatform = startPlatform.ToPoint();
-        platformType = PlatformType.MaxTypes;
+        previousPlatformType = PlatformType.MaxTypes;
 
         smallDistChance = defaultSmallChance;
         medDistChance = defaultMedChance;
@@ -545,7 +554,5 @@ class SpinningPlatform : Platform
         velocity.Y += acceleration.Y * dt;
 
         //DebugLines.Add(new DebugLine(new Vector2(rectangle.X + width/2, rectangle.Y), new Vector2(rectangle.X + width / 2 + 1, rectangle.Y + 1), Color.Red, false));
-
-        base.Update(gameTime);
     }
 }
