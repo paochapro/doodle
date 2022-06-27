@@ -213,9 +213,11 @@ class Platforms : Group<Platform>
     static int medDistChance = 0;
     static int largeDistChance = 0;
 
-    static private void Add(PlatformType platformType, Vector2 pos)
+    static private Platform Add(PlatformType platformType, Vector2 pos)
     {
-        Add((Platform)Activator.CreateInstance(platformTypes[platformType], pos)!);
+        Platform platform = (Platform)Activator.CreateInstance(platformTypes[platformType], pos)!;
+        Add(platform);
+        return platform;
     }
     static public void AddTrap(int previousY, int currentY)
     {
@@ -235,6 +237,8 @@ class Platforms : Group<Platform>
 
     static bool failedBonusSpawn = false;
     public static bool bonusActivated = true;
+
+    static SpinningPlatform.Side lastSpinningSide;
 
     static public int Generate()
     {
@@ -260,13 +264,21 @@ class Platforms : Group<Platform>
             throw new Exception("platform type index chance -1 in Generate");
         }
 
-        if(platformType == PlatformType.Spinning)
-            if (platformChances.Keys.ElementAt(platformTypeIndex) == PlatformType.Spinning)
-                platformTypeIndex = platformChances[PlatformType.Simple];
 
         platformType = platformChances.Keys.ElementAt(platformTypeIndex);   //Getting platform type at index in platformChances
 
-        Add(platformType, new Vector2(x, y));
+        Platform platform = Add(platformType, new Vector2(x, y));
+
+        if(platformType == PlatformType.Spinning)  
+        {
+            lastSpinningSide = lastSpinningSide == SpinningPlatform.Side.Bottom ? 
+                               SpinningPlatform.Side.Top : 
+                               SpinningPlatform.Side.Bottom;
+
+            SpinningPlatform spinningPlatform = (platform as SpinningPlatform)!;
+            spinningPlatform.ChangeRotationSide(lastSpinningSide);
+        }
+
 
         //Distance beetween previous and this platform
         int distance = previousPlatform.Y - y;
@@ -284,6 +296,7 @@ class Platforms : Group<Platform>
         DebugLines.Add(new DebugLine(p1, p2));
 
         previousPlatform = new Point(x, y);
+        previousPlatformType = platformType;
 
         if (platformType == PlatformType.Spinning)
             previousPlatform.Y -= (int)SpinningPlatform.rotationHeight;
@@ -296,8 +309,7 @@ class Platforms : Group<Platform>
         //0-nothing, 1-spring, 2-bonus
         int chance = Chance(100 - Springs.springChance - Bonuses.bonusChance, Springs.springChance, Bonuses.bonusChance);
 
-        if (failedBonusSpawn)
-        {
+        if (failedBonusSpawn) {
             chance = 2;
             failedBonusSpawn = false;
         }
@@ -381,6 +393,7 @@ class Platforms : Group<Platform>
         platformChances[PlatformType.Simple] = simpleDefaultChance;
         platformChances[PlatformType.Breakable] = breakableDefaultChance;
         platformChances[PlatformType.Movable] = movableDefaultChance;
+        lastSpinningSide = SpinningPlatform.Side.Bottom;
         failedBonusSpawn = false;
 
         //First platform
@@ -403,7 +416,7 @@ class Platforms : Group<Platform>
         //Platform types changes
         const int breakableIncrease = 5;
         const int movableIncrease = 5;
-        const int spinningIncrease = 1;
+        const int spinningIncrease = 70;
         const int simpleDecrease = breakableIncrease + movableIncrease + spinningIncrease;
 
         if ((breakableIncrease + movableIncrease + spinningIncrease - simpleDecrease) != 0)
@@ -532,6 +545,7 @@ class BreakablePlatform : Platform
     }
     public override void OnTouch() => Destroy();
 }
+
 class SpinningPlatform : Platform
 {
     static readonly Color sColor = Color.Aquamarine;
@@ -541,7 +555,22 @@ class SpinningPlatform : Platform
        : base(pos, defaultTexture, sColor)
     {
         deathY = pos.Y - rotationHeight;
-        rectangle.X = MyGame.screenSize.X/2-width/2;
+        rectangle.X = MyGame.screenSize.X / 2 - width / 2;
+    }
+
+    public enum Side { Top, Bottom }
+    public Side side { get; private set; }
+
+    public void ChangeRotationSide(Side side)
+    {
+        print(side == Side.Top ? "top" : "bottom");
+        this.side = side;
+
+        if (side == Side.Top)
+        {
+            rectangle.Y -= rotationHeight;
+            acceleration = new(generalAcceleration, generalAcceleration);
+        }
     }
 
     const float maxVelocity = 280;
@@ -588,7 +617,7 @@ class SpinningPlatform : Platform
         velocity.X += acceleration.X * dt;
         velocity.Y += acceleration.Y * dt;
 
-        DebugLines.Add(new DebugLine(new Vector2(rectangle.X + width/2, rectangle.Y), new Vector2(rectangle.X + width / 2 + 1, rectangle.Y + 1), Color.Red, false));
+        //DebugLines.Add(new DebugLine(new Vector2(rectangle.X + width/2, rectangle.Y), new Vector2(rectangle.X + width / 2 + 1, rectangle.Y + 1), Color.Red, false));
 
         base.Update(gameTime);
     }
