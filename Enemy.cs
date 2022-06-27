@@ -8,9 +8,11 @@ using static Doodle.Utils;
 
 class Enemies : Group<Enemy>
 {
-
     public static int enemyChance { get; private set; }
-    const int enemyDefaultChance = 5;
+    const int enemyDefaultChance = 0;
+    const int enemyStartChance = 5;
+
+    public const int trapChance = 30;
 
     static readonly Dictionary<Enemy.EnemyType, Type> enemyTypes = new()
     {
@@ -45,13 +47,13 @@ class Enemies : Group<Enemy>
     static public void DifficultyChange(float diff)
     {
         if(diff > 3) 
-            enemyChance = enemyDefaultChance;
+            enemyChance = enemyStartChance;
     }
 
     static public void Reset()
     {
         Clear();
-        enemyChance = 0;
+        enemyChance = enemyDefaultChance;
     }
 }
 

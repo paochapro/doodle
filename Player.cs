@@ -78,7 +78,7 @@ internal class Player : Entity
             {
                 bonusActivated = false;
                 bonusWastedTime = 0;
-                Platforms.bonusActivated = false;
+                MyGame.bonusActivated = false;
             }
             velocity.Y = -bonus.speed;
             bonusWastedTime += gameTime.ElapsedGameTime.TotalSeconds;
@@ -180,7 +180,7 @@ internal class Player : Entity
     private void ActivateBonus(Bonus.BonusData bonus)
     {
         Enemies.OnBonus();
-        Platforms.bonusActivated = true;
+        MyGame.bonusActivated = true;
 
         bonusActivated = true;
         this.bonus = bonus;
@@ -215,6 +215,8 @@ internal class Player : Entity
                 spring.OnTouch();
             }
         }
+
+        if (MyGame.God) return;
 
         //Enemies
         for (int i = 0; i < Enemies.Count; ++i)

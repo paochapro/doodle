@@ -116,6 +116,7 @@ static class MonoGame
             print("No texture \"" + asset + "\" was found in MonoGame:Load");
             asset = "error";
         }
+
         return Content.Load<Texture2D>(asset);
     }
     static private bool AssetExists(string asset)

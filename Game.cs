@@ -2,6 +2,7 @@
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Audio;
+using MonoGame.Extended;
 
 namespace Doodle;
 
@@ -23,6 +24,7 @@ class MyGame : Game
     public static KeyboardState keys { get => Keyboard.GetState(); }
     static public Vector2 Camera;
     static public bool Debug { get; private set; } = false;
+    static public bool God { get; private set; } = false;
 
     //Game
     static Player player;
@@ -48,11 +50,124 @@ class MyGame : Game
     DebugLine deathpit;
 
     bool pressingE = false;
+    bool pressingG = false;
 
-    static private void GeneratePlatform()
+    //Ui
+    static readonly Rectangle upperBox = new(0, 0, MyGame.screenSize.X, percent(screenSize.Y, 7));
+    static readonly Color upperBoxColor = new Color(0, 0, 0, 0.1f);
+    static readonly Vector2 scorePosition = new Vector2(percent(screenSize.X, 3), percent(screenSize.Y, 2));
+
+    //Generate stuff
+    static private void Generate()
     {
-        int dist = Platforms.Generate();
-        generateHeight += dist;
+        Platforms.GeneratedPlatformData data = Platforms.Generate();
+        SpawnGroundItem(data.x, data.y, data.platformType); //Bonuses and springs
+        SpawnObstacle(data.previousY, data.y); //Enemies and trap platforms
+        generateHeight += -data.distance;
+    }
+    static private void SpawnGroundItem(int x, int y, Platforms.PlatformType platformType)
+    {
+        //0-nothing, 1-spring, 2-bonus
+        int chance = Chance(100 - Springs.springChance - Bonuses.bonusChance, Springs.springChance, Bonuses.bonusChance);
+
+        if (failedBonusSpawn)
+        {
+            chance = 2;
+            failedBonusSpawn = false;
+        }
+
+        if (platformType != Platforms.PlatformType.Simple)
+        {
+            if (chance == 2)
+            {
+                failedBonusSpawn = true;
+                print("failed bonus spawn");
+            }
+
+            return;
+        }
+
+        if (chance == 1) Springs.SpawnSpring(x, y);
+        if (chance == 2) Bonuses.SpawnBonus(x, y);
+
+    }
+    static public void SpawnObstacle(int previousY, int currentY)
+    {
+        //0-nothing, 1-trap platform, 2-enemy
+        int chance = Chance(100 - Enemies.trapChance - Enemies.enemyChance, Enemies.trapChance, Enemies.enemyChance);
+
+        //If there was not enough distance between platforms for enemy to spawn
+        //Try to spawn it again next time until its done
+        if (failedEnemySpawn)
+        {
+            chance = 2;
+            failedEnemySpawn = false;
+        }
+
+        //If nothing, dont spawn anything
+        if (chance == 0) return;
+
+        //If bonus is activated, dont spawn the enemies
+        if (bonusActivated)
+        {
+            chance = 1;
+        }
+
+        //Not enough space?
+        int obstacleHeight = chance == 1 ? Platform.height : Enemy.size.Y;
+        int distanceBetween = previousY - currentY - Platform.height;
+
+        if (distanceBetween < Platforms.minPossibleDistance + obstacleHeight)
+        {
+            if (chance == 2)
+            {
+                failedEnemySpawn = true;
+                print("failed enemy spawn!");
+            }
+
+            return;
+        }
+
+        //Enemy
+        if (chance == 2)
+        {
+            print("spawned enemy");
+            Enemies.SpawnEnemy(previousY, currentY);
+        }
+        //Trap platform
+        if (chance == 1) Platforms.AddTrap(previousY, currentY);
+    }
+
+    static bool failedEnemySpawn = false;
+    static bool failedBonusSpawn = false;
+    public static bool bonusActivated = true;
+
+    static public void Reset()
+    {
+        diffucultyHeight = startDiffucultyHeight * minDifficulty;
+        Diffuculty = minDifficulty;
+        highestY = 0;
+        score = 0;
+        generateHeight = 0;
+        Camera.Y = 0;
+        DeathPit = 999;
+
+        failedEnemySpawn = false;
+        failedBonusSpawn = false;
+        bonusActivated = false;
+
+        Platforms.Reset();
+        Enemies.Reset();
+        Bonuses.Reset();
+        Springs.Clear();
+        DebugLines.Clear();
+        Event.ClearEvents();
+
+
+        for (int i = 0; i < startGenerateCount; ++i)
+            Generate();
+
+        generateHeight /= 2;
     }
 
     protected override void Initialize()
@@ -121,7 +236,7 @@ class MyGame : Game
         }
 
         if (player.Rect.Y < generateHeight)
-            GeneratePlatform();
+            Generate();
 
         base.Update(gameTime);
     }
@@ -130,7 +245,22 @@ class MyGame : Game
     {
         //if (keys.IsKeyDown(Keys.H)) GeneratePlatforms();
         if (keys.IsKeyDown(Keys.E) && !pressingE) Debug = !Debug;
+        if (keys.IsKeyDown(Keys.G) && !pressingG) God = !God;
         pressingE = keys.IsKeyDown(Keys.E);
+        pressingG = keys.IsKeyDown(Keys.G);
+    }
+
+    private void DrawUi()
+    {
+        spriteBatch.FillRectangle(upperBox, upperBoxColor);
+        spriteBatch.DrawString(Ui.Font, "Score: " + score.ToString(), scorePosition, Color.Black);
+
+        if(God)
+        {
+            Vector2 measure = Ui.Font.MeasureString("Godmode ON");
+            Vector2 position = new Vector2(screenSize.X - measure.X - percent(screenSize.X, 5), scorePosition.Y);
+            spriteBatch.DrawString(Ui.Font, "Godmode ON", position, Color.Red);
+        }
     }
 
     protected override void Draw(GameTime gameTime)
@@ -145,6 +275,8 @@ class MyGame : Game
             DebugLines.Draw(spriteBatch);
             player.Draw(spriteBatch);
             Enemies.Draw(spriteBatch);
+
+            DrawUi();
 
             Ui.DrawElements(spriteBatch);
 
@@ -168,33 +300,9 @@ class MyGame : Game
     }
     private void CreateUi()
     {
-        Rectangle rectButton = new Rectangle(15,15, 100, 30);
-        Ui.Add(new Button(rectButton, ()=>Console.WriteLine("hi"), "Hello", 0));
     }
     //Setups
-    static public void Reset()
-    {
-        diffucultyHeight = startDiffucultyHeight * minDifficulty;
-        Diffuculty = minDifficulty;
-        highestY = 0;
-        score = 0;
-        generateHeight = 0;
-        Camera.Y = 0;
-        DeathPit = 999;
 
-        Platforms.Reset();
-        Enemies.Reset();
-        Bonuses.Reset();
-        Springs.Clear();
-        DebugLines.Clear();
-        Event.ClearEvents();
-
-
-        for (int i = 0; i < startGenerateCount; ++i)
-            GeneratePlatform();
-
-        generateHeight /= 2;
-    }
     public MyGame() : base()
     {
         graphics = new GraphicsDeviceManager(this);

@@ -107,7 +107,7 @@ class Bonuses : Group<Bonus>
         const int jetpackChanceIncrease = 15;
 
         if (diff > 2)
-            bonusChance = 4;
+            bonusChance = 3;
 
         if (diff > 3)
         {

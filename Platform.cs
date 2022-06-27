@@ -235,12 +235,19 @@ class Platforms : Group<Platform>
     public const int minPossibleDistance = 15 + Platform.height;
     public const int maxPossibleDistance = 330 - Platform.height;
 
-    static bool failedBonusSpawn = false;
-    public static bool bonusActivated = true;
 
     static SpinningPlatform.Side lastSpinningSide;
 
-    static public int Generate()
+    public readonly record struct GeneratedPlatformData(
+        int x,
+        int y,
+        int previousY,
+        int distance,
+        PlatformType platformType
+    );
+
+
+    static public GeneratedPlatformData Generate()
     {
         //Random distance
         int chance = Chance(smallDistChance, medDistChance, largeDistChance) + 1;
@@ -280,15 +287,14 @@ class Platforms : Group<Platform>
         }
 
 
-        //Distance beetween previous and this platform
-        int distance = previousPlatform.Y - y;
-
-
-        //Bonuses and springs
-        SpawnGroundItem(x, y);
-
-        //Enemies
-        SpawnObstacle(previousPlatform.Y, y);
+        GeneratedPlatformData data = new()
+        {
+            distance = previousPlatform.Y - y,
+            x = x,
+            y = y,
+            previousY = previousPlatform.Y,
+            platformType = Platforms.platformType
+        };
 
         //Debug
         Vector2 p1 = new Vector2(previousPlatform.X, y);
@@ -300,83 +306,7 @@ class Platforms : Group<Platform>
         if (platformType == PlatformType.Spinning)
             previousPlatform.Y -= (int)SpinningPlatform.rotationHeight;
 
-        return -distance;
-    }
-
-    static private void SpawnGroundItem(int x, int y)
-    {
-        //0-nothing, 1-spring, 2-bonus
-        int chance = Chance(100 - Springs.springChance - Bonuses.bonusChance, Springs.springChance, Bonuses.bonusChance);
-
-        if (failedBonusSpawn) {
-            chance = 2;
-            failedBonusSpawn = false;
-        }
-
-        if (platformType != PlatformType.Simple)
-        {
-            if(chance == 2)
-            {
-                failedBonusSpawn = true;
-                print("failed bonus spawn");
-            }
-
-            return;
-        }
-
-        if (chance == 1) Springs.SpawnSpring(x, y);
-        if (chance == 2) Bonuses.SpawnBonus(x, y);
-        
-    }
-
-    const int trapChance = 30;
-    static bool failedEnemySpawn = false;
-
-    static public void SpawnObstacle(int previousY, int currentY)
-    {
-        //0-nothing, 1-trap platform, 2-enemy
-        int chance = Chance(100 - trapChance - Enemies.enemyChance, trapChance, Enemies.enemyChance);
-
-        //If there was not enough distance between platforms for enemy to spawn
-        //Try to spawn it again next time until its done
-        if (failedEnemySpawn)
-        {
-            chance = 2;
-            failedEnemySpawn = false;
-        }
-
-        //If nothing, dont spawn anything
-        if (chance == 0) return;
-
-        //If bonus is activated, dont spawn the enemies
-        if (bonusActivated)
-        {
-            chance = 1;
-        }
-
-        //Not enough space?
-        int obstacleHeight = chance == 1 ? Platform.height : Enemy.size.Y;
-        int distanceBetween = previousY - currentY - Platform.height;
-
-        if (distanceBetween < minPossibleDistance + obstacleHeight)
-        {
-            if (chance == 2)
-            {
-                failedEnemySpawn = true;
-                print("failed enemy spawn!");
-            }
-
-            return;
-        }
-
-        //Enemy
-        if (chance == 2)
-        {
-            print("spawned enemy");
-            Enemies.SpawnEnemy(previousY, currentY);
-        }
-        //Trap platform
-        if (chance == 1) AddTrap(previousY, currentY);
+        return data;
     }
 
     static public void Reset()
@@ -393,7 +323,6 @@ class Platforms : Group<Platform>
         platformChances[PlatformType.Breakable] = breakableDefaultChance;
         platformChances[PlatformType.Movable] = movableDefaultChance;
         lastSpinningSide = SpinningPlatform.Side.Bottom;
-        failedBonusSpawn = false;
 
         //First platform
         Add(new SimplePlatform(startPlatform));
