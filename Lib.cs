@@ -27,6 +27,8 @@ static class Utils
         if (value < min) value = min;
         return value;
     }
+
+    //Randomness
     static public int RandomBetween(int a, int b)
     {
         int seed = (int)DateTime.Now.Ticks;
@@ -81,7 +83,7 @@ static class Utils
     static public int center(int x, int size) => x / 2 - size / 2;
     static public Vector2 center(Rectangle rect) => new Vector2( rect.X + (float)rect.Width / 2, rect.Y + (float)rect.Height / 2);
 
-    static public int percent(int value, double percent) => (int)Math.Round(value / 100 * percent);
+    static public int percent(double value, double percent) => (int)Math.Round(value / 100 * percent);
     static public double avg(params double[] values) => values.Average();
     static public int Round(double value) => (int)Math.Round(value);
     static public int Round(float value) => (int)Math.Round(value);

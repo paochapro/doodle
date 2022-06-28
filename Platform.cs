@@ -242,6 +242,7 @@ class Platforms : Group<Platform>
         int x,
         int y,
         int previousY,
+        int previousX,
         int distance,
         PlatformType platformType
     );
@@ -303,6 +304,7 @@ class Platforms : Group<Platform>
             x = x,
             y = y,
             previousY = previousPlatform.Y,
+            previousX = previousPlatform.X,
             platformType = platformType
         };
 

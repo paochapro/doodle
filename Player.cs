@@ -115,7 +115,8 @@ internal class Player : Entity
 
             if (platform.PlatformType == Platforms.PlatformType.Spinning)
             {
-                if (velocity.Y < 0) continue;
+                if (velocity.Y < 0) 
+                    continue;
             }
             else
             {
@@ -152,7 +153,6 @@ internal class Player : Entity
 
         velocity.X += moveX * accelaration * dt;
         velocity.X = velocity.X * drag;
-
 
         if (Math.Abs(velocity.X) < 1)
             velocity.X = 0;

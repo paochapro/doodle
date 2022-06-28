@@ -14,6 +14,8 @@ class Enemies : Group<Enemy>
 
     public const int trapChance = 30;
 
+    public const int minPossibleDistance = Enemy.height + 15;
+
     static readonly Dictionary<Enemy.EnemyType, Type> enemyTypes = new()
     {
         [Enemy.EnemyType.Moving] = typeof(MovingEnemy),
@@ -32,21 +34,28 @@ class Enemies : Group<Enemy>
         }
     }
 
-
-    static public void SpawnEnemy(int previousY, int currentY)
+    static public void SpawnEnemy(int previousY, int currentY, int x)
     {
-        Vector2 pos = new(
-            Random(0, MyGame.screenSize.X - Platform.width),//Good
-            Random(max: previousY - Platforms.minPossibleDistance, min: currentY + Platforms.minPossibleDistance) //70%
-        );
+        bool isLeft = Chance(50);
+
+        int leftStart = 0;
+        int leftEnd = x - Enemy.width;
+        int rightStart = x + Platform.width;
+        int rightEnd = MyGame.screenSize.X - Enemy.width;
+
+        if (Enemy.size.X > leftEnd  - leftStart)  isLeft = false;
+        if (Enemy.size.X > rightEnd - rightStart) isLeft = true;
+
+        int enemyX = isLeft ? Random(leftStart, leftEnd) : Random(rightStart, rightEnd);
+        int enemyY = Random(max: previousY - minPossibleDistance, min: currentY + minPossibleDistance);
 
         Enemy.EnemyType enemyType = (Enemy.EnemyType)Random(0, (int)Enemy.EnemyType.MaxTypes);
-        Add((Enemy)Activator.CreateInstance(enemyTypes[enemyType], pos)!);
+        Add((Enemy)Activator.CreateInstance(enemyTypes[enemyType], new Vector2(enemyX, enemyY))!);
     }
 
     static public void DifficultyChange(float diff)
     {
-        if(diff > 3) 
+        if(diff > 3)
             enemyChance = enemyStartChance;
     }
 
@@ -67,18 +76,16 @@ abstract class Enemy : Entity
         MaxTypes
     }
 
-    static public readonly Point size = new(64, 64);
+    static public readonly Point size = new(width, height);
+    public const int width = 64;
+    public const int height = 64;
 
     public Enemy(Vector2 pos, Texture2D texture) 
         : base( new RectangleF(pos,size), texture) 
-    { 
-    }
-
-    public override void Update(GameTime gameTime)
     {
-        DestroyOOB();
     }
 
+    public override void Update(GameTime gameTime) => DestroyOOB();
     public override void Destroy() => Enemies.Destroy(groupID);
 }
 
