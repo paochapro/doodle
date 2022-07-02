@@ -1,5 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Audio;
 using MonoGame.Extended;
 
 namespace Doodle;
@@ -87,6 +88,12 @@ abstract class Enemy : Entity
 
     public override void Update(GameTime gameTime) => DestroyOOB();
     public override void Destroy() => Enemies.Destroy(groupID);
+
+    public override void OnTouch()
+    {
+        SoundEffect slam = MonoGame.Load<SoundEffect>("slam");
+        slam.Play();
+    }
 }
 
 class MovingEnemy : Enemy
@@ -116,6 +123,8 @@ class MovingEnemy : Enemy
 
         base.Update(gameTime);
     }
+
+    public override void OnTouch() => base.OnTouch();
 }
 
 class StaticEnemy : MovingEnemy
@@ -133,6 +142,8 @@ class StaticEnemy : MovingEnemy
         rightLimit = pos.X + shake;
         speed = 150;
     }
+
+    public override void OnTouch() => base.OnTouch();
 }
 class Blackhole : Enemy
 {
@@ -141,4 +152,10 @@ class Blackhole : Enemy
     public Blackhole(Vector2 pos)
         : base(pos, sTexture)
     {}
+
+    public override void OnTouch()
+    {
+        SoundEffect blackhole = MonoGame.Load<SoundEffect>("blackhole");
+        blackhole.Play();
+    }
 }

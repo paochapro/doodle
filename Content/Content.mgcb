@@ -13,6 +13,12 @@
 
 #---------------------------------- Content ---------------------------------#
 
+#begin 409273__wertstahl__018-disappearance.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:409273__wertstahl__018-disappearance.wav;blackhole.wav
+
 #begin 566176__arrowheadproductions__flicking-a-switch.wav
 /importer:WavImporter
 /processor:SoundEffectProcessor
@@ -74,6 +80,12 @@
 /processorParam:TextureFormat=Color
 /build:bonus_rocket.png
 
+#begin crack.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:crack.wav
+
 #begin enemy_blackhole.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -134,6 +146,18 @@
 /processorParam:TextureFormat=Color
 /build:error.png
 
+#begin fall.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:fall.wav
+
+#begin jump.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:jump.wav
+
 #begin platform.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -182,6 +206,18 @@
 /processorParam:TextureFormat=Color
 /build:player_rocket.png
 
+#begin propeller.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:propeller.wav
+
+#begin rocket.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:rocket.wav
+
 #begin scoreline.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -193,6 +229,18 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:scoreline.png
+
+#begin slam.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:slam.wav
+
+#begin snd_spring.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:snd_spring.wav
 
 #begin sprint.png
 /importer:TextureImporter

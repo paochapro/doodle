@@ -45,6 +45,13 @@ static class Utils
         int seed = (int)DateTime.Now.Ticks;
         return new Random(seed).Next(min, max);
     }
+
+    static public float RandomFloat(float min, float max)
+    {
+        int seed = (int)DateTime.Now.Ticks;
+        return new Random(seed).NextSingle(min, max);
+    }
+
     static public bool Chance(int percent)
     {
         int seed = (int)DateTime.Now.Ticks;

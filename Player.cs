@@ -1,6 +1,7 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Audio;
 using MonoGame.Extended;
 
 namespace Doodle;
@@ -46,7 +47,7 @@ internal class Player : Entity
 
     public Player() : base( new RectangleF(0,0,size.X, size.Y), idle )
     {
-        Death();
+        Death(false);
     }
 
     public override void Update(GameTime gameTime)
@@ -86,26 +87,37 @@ internal class Player : Entity
             return;
         }
 
-        //Collision
-        PlatformCollision();
-        OtherCollision();
-
         //Death
         if (rectangle.Y + size.Y >= MyGame.DeathPit)
         {
             if(MyGame.God)
-                Jump(jumpHeight);
+                Jump();
             else
             {
-                MyGame.DeathState();
+                SoundEffect fall = MonoGame.Load<SoundEffect>("fall");
+                fall.Play();
+
                 Death();
             }
         }
 
+        //Collision
+        PlatformCollision();
+        OtherCollision();
+
         oldPosition = rectangle.Position;
     }
 
-    private void Jump(float height) => velocity.Y = -height;
+    private void Jump(bool spring = false)
+    {
+        SoundEffectInstance sndJump = spring ? MonoGame.Load<SoundEffect>("snd_spring").CreateInstance() :
+                                               MonoGame.Load<SoundEffect>("jump").CreateInstance();
+
+        sndJump.Pitch = RandomFloat(-0.2f, 0.0f);
+        sndJump.Play();
+
+        velocity.Y = spring ? -springLaunchHeight : -jumpHeight;
+    }
 
     private void PlatformCollision()
     {
@@ -141,7 +153,7 @@ internal class Player : Entity
                 while (rectangle.Intersects(platform.Rect))
                     rectangle.Y -= 1;
 
-                Jump(jumpHeight);
+                Jump();
             }
         }
     }
@@ -165,12 +177,15 @@ internal class Player : Entity
 
         if (keys.IsKeyDown(Keys.I))
         {
-            Jump(jumpHeight);
+            Jump();
         }
     }
 
-    private void Death()
+    private void Death(bool resetGame = true)
     {
+        if (resetGame)
+            MyGame.Death();
+
         texture = idle;
         velocity = Vector2.Zero;
         rectangle.Position = defaultPosition;
@@ -218,7 +233,7 @@ internal class Player : Entity
 
             if (rectangle.Intersects(spring.Rect))
             {
-                Jump(springLaunchHeight);
+                Jump(true);
                 spring.OnTouch();
             }
         }

@@ -1,5 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Audio;
 using MonoGame.Extended;
 
 namespace Doodle;
@@ -470,7 +471,13 @@ class TrapPlatform : Platform
     {
     }
 
-    public override void OnTouch() => Destroy();
+    public override void OnTouch()
+    {
+        SoundEffectInstance crack = MonoGame.Load<SoundEffect>("crack").CreateInstance();
+        crack.Pitch = RandomFloat(-0.2f, 0.0f);
+        crack.Play();
+        Destroy();
+    }
 }
 
 //Breakable

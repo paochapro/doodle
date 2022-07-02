@@ -4,6 +4,7 @@ using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Audio;
 using MonoGame.Extended;
 
+
 namespace Doodle;
 
 using static Utils;
@@ -19,15 +20,35 @@ class MyGame : Game
     //General stuff
     static public GraphicsDeviceManager Graphics => graphics;
     static GraphicsDeviceManager graphics;
-    SpriteBatch spriteBatch;
+    static SpriteBatch spriteBatch;
     public static MouseState mouse { get => Mouse.GetState(); }
     public static KeyboardState keys { get => Keyboard.GetState(); }
-    static public Vector2 Camera;
+
+    static private Vector2 camera;
+    static public Vector2 Camera => camera;
+
     static public bool Debug { get; private set; } = false;
     static public bool God { get; private set; } = false;
 
     public enum GameState { Menu, Game, Death }
-    public static GameState gameState { get; private set; }
+
+    private static GameState gameStateVariable; //never use this
+    public static GameState gameState
+    {
+        get => gameStateVariable;
+        set
+        {
+            gameStateVariable = value;
+            UI.CurrentLayer = Convert.ToInt32(gameState);
+        }
+    }
+
+    static readonly Dictionary<GameState, Action> drawMethods = new()
+    {
+        [GameState.Menu] = DrawMenu,
+        [GameState.Game] = DrawGame,
+        [GameState.Death] = DrawDeathUI
+    };
 
     //Game
     static Player player;
@@ -49,28 +70,34 @@ class MyGame : Game
     static float highestY;
     static int deathCount = 0;
 
+    //Scores
     static int score;
     static int highscore = 0;
     const int maxTopScores = 10;
+    static int[] scores = new int[maxTopScores];
 
     const string statsPath = "Content/stats.txt";
 
-    Texture2D background;
+    static Texture2D background;
     static int bgStartY;
     static int bgEndY;
 
     //Debug
-    DebugLine generateHeightLine;
-    DebugLine deathpit;
-    bool pressingE = false;
-    bool pressingG = false;
+    static DebugLine generateHeightLine;
+    static DebugLine deathpit;
+    static bool pressingE = false;
+    static bool pressingG = false;
 
     //Ui
     static readonly Rectangle upperBox = new(0, 0, screenSize.X, percent(screenSize.Y, 7));
     static readonly Color upperBoxColor = new Color(0, 0, 0, 0.1f);
     static readonly Vector2 scorePosition = new Vector2(percent(upperBox.Width, 3), percent(upperBox.Height, 25));
 
-    //Generate stuff
+    static bool failedEnemySpawn = false;
+    static bool failedBonusSpawn = false;
+    public static bool bonusActivated = true;
+
+    //Generating
     static private void Generate()
     {
         Platforms.GeneratedPlatformData data = Platforms.Generate();
@@ -154,12 +181,15 @@ class MyGame : Game
         //Trap platform
         if (chance == 1) Platforms.AddTrap(previousY, currentY);
     }
+    static private void DifficultyChange()
+    {
+        Bonuses.DifficultyChange(Diffuculty);
+        Enemies.DifficultyChange(Diffuculty);
+        Platforms.DifficultyChange(Diffuculty);
+    }
 
-    static bool failedEnemySpawn = false;
-    static bool failedBonusSpawn = false;
-    public static bool bonusActivated = true;
-
-    static public void Reset()
+    //Initialization
+    static private void Reset()
     {
         diffucultyHeight = startDiffucultyHeight * minDifficulty;
         Diffuculty = minDifficulty;
@@ -167,10 +197,7 @@ class MyGame : Game
         score = 0;
         generateHeight = 0;
         DeathPit = 999;
-        Camera = Vector2.Zero;
-
-        bgStartY = (int)Camera.Y;
-        bgEndY = ((int)Camera.Y + screenSize.Y) * 2;
+        ResetBackground();
 
         failedEnemySpawn = false;
         failedBonusSpawn = false;
@@ -184,6 +211,13 @@ class MyGame : Game
         DebugLines.Clear();
         Scorelines.Clear();
         Event.ClearEvents();
+    }
+
+    static private void ResetBackground()
+    {
+        camera = Vector2.Zero;
+        bgStartY = (int)Camera.Y;
+        bgEndY = ((int)Camera.Y + screenSize.Y) * 2;
     }
 
     protected override void LoadContent()
@@ -202,22 +236,14 @@ class MyGame : Game
         if (!File.Exists(statsPath))
         {
             print("file created");
-
-            for(int i = 0; i < maxTopScores; ++i)
-            {
-                File.AppendAllText(statsPath, "0\n");
-            }
+            ResetGlobalScores();
         }
 
-        string[] stringScores = File.ReadAllLines(statsPath);
+        scores = File.ReadAllLines(statsPath)
+                        .Select(score => int.Parse(score))
+                        .ToArray();
 
-        if (stringScores.Length > 0)
-        {
-            var intScores = stringScores.Select(score => int.Parse(score));
-            highscore = intScores.Max();
-        }
-        else
-            highscore = 0;
+        highscore = scores[^1];
     }
 
     protected override void Initialize()
@@ -237,13 +263,6 @@ class MyGame : Game
         base.Initialize();
     }
 
-    private void DifficultyChange()
-    {
-        Bonuses.DifficultyChange(Diffuculty);
-        Enemies.DifficultyChange(Diffuculty);
-        Platforms.DifficultyChange(Diffuculty);
-    }
-
     //Main
     protected override void Update(GameTime gameTime)
     {
@@ -255,13 +274,14 @@ class MyGame : Game
         UI.UpdateElements(mouse);
         Event.ExecuteEvents(gameTime);
 
+        if(gameState == GameState.Game)
+            Entities.Update(gameTime);
+
         if (gameState != GameState.Game)
         {
             base.Update(gameTime);
             return;
         }
-
-        Entities.Update(gameTime);
 
         if (player.Rect.Y < highestY)
             highestY = player.Rect.Y;
@@ -269,13 +289,19 @@ class MyGame : Game
         generateHeightLine.p1.Y = generateHeight;
         generateHeightLine.p2.Y = generateHeight;
 
-        Camera.Y = highestY - center(screenSize.Y, player.Rect.Height) + percent(screenSize.Y, 5);
+        camera.Y = highestY - center(screenSize.Y, player.Rect.Height) + percent(screenSize.Y, 5);
         DeathPit = Camera.Y + screenSize.Y;
 
         deathpit.p1.Y = DeathPit;
         deathpit.p2.Y = DeathPit;
 
         score = -(int)Math.Round(highestY / 10);
+
+        if (Camera.Y < bgStartY)
+        {
+            bgStartY -= screenSize.Y;
+            bgEndY -= screenSize.Y;
+        }
 
         if (-player.Rect.Y >= diffucultyHeight)
         {
@@ -291,19 +317,13 @@ class MyGame : Game
             DifficultyChange();
         }
 
-        if(Camera.Y < bgStartY)
-        {
-            bgStartY -= screenSize.Y;
-            bgEndY -= screenSize.Y;
-        }
-
         if (player.Rect.Y < generateHeight)
             Generate();
 
         base.Update(gameTime);
     }
 
-    private void Controls()
+    static private void Controls()
     {
         //if (keys.IsKeyDown(Keys.H)) GeneratePlatforms();
         if (keys.IsKeyDown(Keys.E) && !pressingE) Debug = !Debug;
@@ -312,8 +332,20 @@ class MyGame : Game
         pressingG = keys.IsKeyDown(Keys.G);
     }
 
-    private void DrawGameUi()
+    //Draw
+    static private void DrawGame()
     {
+        Platforms.Draw(spriteBatch);
+        Scorelines.Draw(spriteBatch);
+        Bonuses.Draw(spriteBatch);
+        Springs.Draw(spriteBatch);
+        DebugLines.Draw(spriteBatch);
+        player.Draw(spriteBatch);
+        Enemies.Draw(spriteBatch);
+
+        generateHeightLine.Draw(spriteBatch);
+        deathpit.Draw(spriteBatch);
+
         spriteBatch.FillRectangle(upperBox, upperBoxColor);
         spriteBatch.DrawString(UI.Font, score.ToString(), scorePosition, Color.Black);
 
@@ -325,7 +357,7 @@ class MyGame : Game
         }
     }
 
-    private void DrawDeathUI()
+    static private void DrawDeathUI()
     {
         string scoreText = "Score: " + score;
         string highscoreText = "Highscore: " + highscore;
@@ -340,7 +372,24 @@ class MyGame : Game
         spriteBatch.DrawString(UI.Font, highscoreText, highscorePos, Color.Black);
     }
 
-    private void DrawBackground()
+    static private void DrawMenu()
+    {
+        const int scoreSizeY = 25;
+        int scoreX = percent(screenSize.X, 2);
+
+        Vector2 pos = new(scoreX, percent(screenSize.X, 2));
+        spriteBatch.DrawString(UI.Font, "Top scores: ", pos, Color.Black);
+
+        int scoreY = (int)pos.Y + scoreSizeY;
+
+        for(int i=1; i < maxTopScores+1; ++i)
+        {
+            spriteBatch.DrawString(UI.Font, i + ". " + scores[^i].ToString(), new Vector2(scoreX, scoreY), Color.Black);
+            scoreY += scoreSizeY;
+        }
+    }
+
+    static private void DrawBackground()
     {
         for (int x = 0; x <= screenSize.X; x += background.Width)
         {
@@ -360,40 +409,18 @@ class MyGame : Game
             DrawBackground();
             UI.DrawElements(spriteBatch);
 
-            if (gameState == GameState.Game)
-            {
-                Platforms.Draw(spriteBatch);
-                Scorelines.Draw(spriteBatch);
-                Bonuses.Draw(spriteBatch);
-                Springs.Draw(spriteBatch);
-                DebugLines.Draw(spriteBatch);
-                player.Draw(spriteBatch);
-                Enemies.Draw(spriteBatch);
-
-                DrawGameUi();
-
-                generateHeightLine.Draw(spriteBatch);
-                deathpit.Draw(spriteBatch);
-            }
-            if (gameState == GameState.Death)
-            {
-                DrawDeathUI();
-            }
+            drawMethods[gameState].Invoke();
         }
         spriteBatch.End();
 
         base.Draw(gameTime);
     }
 
-    private void StartGame()
+    //Initialize game states
+    static private void StartGame()
     {
         gameState = GameState.Game;
-        UI.CurrentLayer = 1;
         Reset();
-
-        int[] scores = File.ReadAllLines(statsPath)
-                .Select(score => int.Parse(score))
-                .ToArray();
 
         foreach (int score in scores.Where(i => i > 0))
         {
@@ -408,17 +435,17 @@ class MyGame : Game
         generateHeight /= 2;
     }
 
-    private void Menu()
+    static private void StartMenu()
     {
+        ResetBackground();
         gameState = GameState.Menu;
-        UI.CurrentLayer = 0;
     }
 
-
-    static public void DeathState()
+    static public void Death()
     {
+        ResetBackground();
         gameState = GameState.Death;
-        UI.CurrentLayer = 2;
+
         deathCount++;
 
         if (score > highscore)
@@ -427,13 +454,9 @@ class MyGame : Game
         AddScore();
     }
 
+    //Other
     static private void AddScore()
     {
-        //Getting scores from file
-        int[] scores = File.ReadAllLines(statsPath)
-                .Select(score => int.Parse(score))
-                .ToArray();
-
         //If scores already has this score or there isn't smaller score than this one, skip
         if (scores.Contains(score) || 
             score <= scores.Min()) 
@@ -441,18 +464,34 @@ class MyGame : Game
 
         //Write score to the file
         scores[Array.IndexOf(scores, scores.Min())] = score;
+        Array.Sort(scores);
         File.WriteAllLines(statsPath, scores.Select(score => score.ToString()));
     }
 
-    private void CreateUi()
+    static private void ResetGlobalScores()
+    {
+        File.WriteAllText(statsPath, null);
+        for (int i = 0; i < maxTopScores; ++i)
+        {
+            File.AppendAllText(statsPath, "0\n");
+        }
+        highscore = 0;
+
+        Array.Clear(scores);
+    }
+
+    static private void CreateUi()
     {
         Point buttonSize = new(150,50);
         Rectangle rectPlay = new(center(screenSize.X, buttonSize.X), center(screenSize.Y, buttonSize.Y), buttonSize.X, buttonSize.Y);
+        Rectangle rectScores = new(screenSize.X - buttonSize.X - percent(screenSize.X, 3), percent(screenSize.Y, 2), buttonSize.X, buttonSize.Y);
         Rectangle rectMenu = new(center(screenSize.X, buttonSize.X), center(screenSize.Y, buttonSize.Y) + percent(screenSize.Y, 25), buttonSize.X, buttonSize.Y);
         Rectangle rectRestart = rectMenu;
         rectRestart.Y = rectMenu.Y - buttonSize.Y - percent(screenSize.X, 2);
+
         UI.Add(new Button(rectPlay, StartGame, "Play", 0));
-        UI.Add(new Button(rectMenu, Menu, "Menu", 2));
+        UI.Add(new Button(rectScores, ResetGlobalScores, "Reset scores", 0));
+        UI.Add(new Button(rectMenu, StartMenu, "Menu", 2));
         UI.Add(new Button(rectRestart, StartGame, "Restart", 2));
     }
 
@@ -477,7 +516,7 @@ class Scorelines : Group<Scoreline>  {}
 class Scoreline : Entity
 {
     static readonly Texture2D scorelineTexture = MonoGame.LoadTexture("scoreline");
-    static readonly Point size = new Point(54, 12);//scorelineTexture.Bounds.Size;
+    static readonly Point size = new Point(54, 12);
     static readonly float x = MyGame.screenSize.X - size.X;
 
     float score;
