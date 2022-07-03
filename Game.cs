@@ -97,6 +97,8 @@ class MyGame : Game
     static bool failedBonusSpawn = false;
     public static bool bonusActivated = true;
 
+    static int test = 0;
+
     //Generating
     static private void Generate()
     {
@@ -493,6 +495,11 @@ class MyGame : Game
         UI.Add(new Button(rectScores, ResetGlobalScores, "Reset scores", 0));
         UI.Add(new Button(rectMenu, StartMenu, "Menu", 2));
         UI.Add(new Button(rectRestart, StartGame, "Restart", 2));
+
+        var volumeChange = (int v) => { SoundEffect.MasterVolume = (float)v / 100; };
+
+        Point sliderSize = new(410, Slider.sizeY);
+        UI.Add(new Slider(new Point(center(screenSize.X, sliderSize.X), screenSize.Y - percent(screenSize.Y, 5) - sliderSize.Y), "Volume:", volumeChange, 0));
     }
 
     public MyGame() : base()

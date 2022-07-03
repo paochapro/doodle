@@ -319,14 +319,17 @@ abstract class UI
 
     public static SpriteFont Font { get; set; }
 
+    public Point Position { get => rect.Location; set => rect.Location = value; }
+
     static UI()
     {
         Font = MonoGame.Load<SpriteFont>("bahnschrift")!;
     }
 
-    string text;
+    protected string text;
 
     bool locked = false;
+    protected bool allowHold;
 
     public bool Locked 
     {
@@ -349,8 +352,11 @@ abstract class UI
         mainColor = mainDefaultColor;
         bgColor = bgDefaultColor;
 
-        if (rect.Contains(mouse.Position) && !clicking)
+        if (rect.Contains(mouse.Position))
         {
+            if(!allowHold && clicking)
+                return;
+            
             mainColor = mainSelectedColor;
             bgColor = bgSelectedColor;
 
@@ -373,6 +379,8 @@ abstract class UI
 
         spriteBatch.DrawString(Font, text, position, mainColor, 0, new Vector2(0,0), scale, SpriteEffects.None, 0);
     }
+
+
 
     protected readonly int layer = 0;
     public static int CurrentLayer { get; set; }
@@ -416,6 +424,7 @@ class Button : UI
         : base(rect,text,layer)
     {
         this.func = func;
+        allowHold = false;
     }
     public override void Activate() => func.Invoke();
 }
@@ -433,6 +442,7 @@ class CheckBox : UI
     {
         this.act1 = act1;
         this.act2 = act2;
+        allowHold = false;
     }
     public override void Activate()
     {
@@ -448,6 +458,69 @@ class CheckBox : UI
         }
     }
 }
+
+class Slider : UI
+{
+    public const int sizeY = 50;
+    const int sliderSizeX = 20;
+    const int sliderOffset = 15;
+
+    public Point Size => new Point(size.X + (int)textSize.X + sliderOffset, size.Y + (int)textSize.Y + sliderOffset);
+
+    static readonly Point size = new(300 + sliderSizeX, sizeY);
+    static readonly Point sliderSize = new(sliderSizeX, size.Y);
+    static readonly int barSizeY = 10;
+
+    int min, max;
+    int sliderX;
+    event Action<int> func;
+
+    Point textSize;
+    Point textPos;
+
+    public Slider(Point pos, string text, Action<int> func, int layer)
+        : base(new Rectangle(pos, size), text, layer)
+    {
+        textSize = Font.MeasureString(text).ToPoint();
+        textPos = new Point(pos.X, center(pos.Y, pos.Y + size.Y, textSize.Y) - 3);
+
+        int offset = textSize.X + sliderOffset;
+
+        rect.X += offset;
+        min = rect.X;
+        max = rect.X + size.X - sliderSize.X;
+        allowHold = true;
+
+        sliderX = rect.X;
+
+        this.func = func;
+    }
+
+    public override void Activate()
+    {
+        sliderX = MyGame.mouse.Position.X;
+        sliderX = clamp(sliderX, min, max);
+
+        //Getting range from 0 to 100
+        int denominator = (size.X - sliderSizeX) / 100;
+        float value = (float)(sliderX - rect.X) / denominator;
+
+        func.Invoke((int)Math.Round(value));
+    }
+
+    protected override void Draw(SpriteBatch spriteBatch)
+    {
+        spriteBatch.DrawString(Font, text, textPos.ToVector2(), Color.Black);
+
+        Rectangle bar = new Rectangle(rect.X, center(rect.Y, rect.Y+size.Y,barSizeY) , size.X, barSizeY);
+        spriteBatch.FillRectangle(bar, Color.Gray);
+
+        Rectangle slider = new Rectangle(sliderX, rect.Y, sliderSize.X, sliderSize.Y);
+        spriteBatch.FillRectangle(slider, Color.White);
+        spriteBatch.DrawRectangle(slider, Color.Black, 3);
+    }
+}
+
 
 /*class Group<T> where T : Entity
 {
