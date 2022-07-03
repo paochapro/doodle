@@ -25,7 +25,6 @@ internal class Player : Entity
     //Static
     public static readonly Point size = new(36,48);
     static readonly Texture2D idle = MonoGame.LoadTexture("player_idle");
-    static readonly Texture2D shoot = MonoGame.LoadTexture("player_shoot");
     readonly Vector2 defaultPosition = new(center(0, MyGame.screenSize.X, size.X), 0);
 
     //Base

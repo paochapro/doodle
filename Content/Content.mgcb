@@ -19,12 +19,6 @@
 /processorParam:Quality=Best
 /build:409273__wertstahl__018-disappearance.wav;blackhole.wav
 
-#begin 566176__arrowheadproductions__flicking-a-switch.wav
-/importer:WavImporter
-/processor:SoundEffectProcessor
-/processorParam:Quality=Best
-/build:566176__arrowheadproductions__flicking-a-switch.wav;bonus.wav
-
 #begin background.png
 /importer:TextureImporter
 /processor:TextureProcessor

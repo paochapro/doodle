@@ -465,8 +465,6 @@ class Slider : UI
     const int sliderSizeX = 20;
     const int sliderOffset = 15;
 
-    public Point Size => new Point(size.X + (int)textSize.X + sliderOffset, size.Y + (int)textSize.Y + sliderOffset);
-
     static readonly Point size = new(300 + sliderSizeX, sizeY);
     static readonly Point sliderSize = new(sliderSizeX, size.Y);
     static readonly int barSizeY = 10;
@@ -478,7 +476,7 @@ class Slider : UI
     Point textSize;
     Point textPos;
 
-    public Slider(Point pos, string text, Action<int> func, int layer)
+    public Slider(Point pos, string text, Action<int> func, int defaultValue, int layer)
         : base(new Rectangle(pos, size), text, layer)
     {
         textSize = Font.MeasureString(text).ToPoint();
@@ -489,9 +487,8 @@ class Slider : UI
         rect.X += offset;
         min = rect.X;
         max = rect.X + size.X - sliderSize.X;
+        sliderX = rect.X + defaultValue;
         allowHold = true;
-
-        sliderX = rect.X;
 
         this.func = func;
     }

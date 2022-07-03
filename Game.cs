@@ -68,7 +68,6 @@ class MyGame : Game
     public const float difficultyMultiplier = 1.8f;
 
     static float highestY;
-    static int deathCount = 0;
 
     //Scores
     static int score;
@@ -96,8 +95,6 @@ class MyGame : Game
     static bool failedEnemySpawn = false;
     static bool failedBonusSpawn = false;
     public static bool bonusActivated = true;
-
-    static int test = 0;
 
     //Generating
     static private void Generate()
@@ -448,8 +445,6 @@ class MyGame : Game
         ResetBackground();
         gameState = GameState.Death;
 
-        deathCount++;
-
         if (score > highscore)
             highscore = score;
 
@@ -499,7 +494,8 @@ class MyGame : Game
         var volumeChange = (int v) => { SoundEffect.MasterVolume = (float)v / 100; };
 
         Point sliderSize = new(410, Slider.sizeY);
-        UI.Add(new Slider(new Point(center(screenSize.X, sliderSize.X), screenSize.Y - percent(screenSize.Y, 5) - sliderSize.Y), "Volume:", volumeChange, 0));
+        int defaultValue = (int)(defaultVolume * 100);
+        UI.Add(new Slider(new Point(center(screenSize.X, sliderSize.X), screenSize.Y - percent(screenSize.Y, 5) - sliderSize.Y), "Volume:", volumeChange, defaultValue, 0));
     }
 
     public MyGame() : base()
